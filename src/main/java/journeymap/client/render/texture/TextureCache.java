@@ -6,6 +6,10 @@
 package journeymap.client.render.texture;
 
 import javax.imageio.ImageTypeSpecifier;
+
+import com.google.common.base.Joiner;
+import com.gtnewhorizons.navigator.api.NavigatorApi;
+
 import journeymap.client.io.FileHandler;
 import journeymap.client.io.IconSetFileHandler;
 import journeymap.client.io.RegionImageHandler;
@@ -22,6 +26,7 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Collections;
@@ -61,30 +66,6 @@ public class TextureCache
         return texExec.submit(textureTask);
     }
 
-    /**
-     * *********************************************
-     */
-
-//    public TextureImpl getCustomTexture(String filename, boolean retain) {
-//        synchronized(customTextures)
-//        {
-//            TextureImpl tex = customTextures.get(filename);
-//            if(tex==null || (!tex.hasImage() && retain)) {
-//                BufferedImage img = FileHandler.getImage(filename);
-//                if(img==null){
-//                    img = getUnknownEntity().getImage();
-//                }
-//                if(img!=null){
-//                    if(tex!=null){
-//                        tex.queueForDeletion();
-//                    }
-//                    tex = new TextureImpl(img, retain);
-//                    customTextures.put(filename, tex);
-//                }
-//            }
-//            return tex;
-//        }
-//    }
     private TextureImpl getNamedTexture(Name name, String filename, boolean retain)
     {
         synchronized (namedTextures)
@@ -153,128 +134,42 @@ public class TextureCache
         return tex;
     }
 
-    public TextureImpl getWaypoint()
-    {
-        return getNamedTexture(Name.Waypoint, "waypoint.png", false); //$NON-NLS-1$
-    }
-
-    public TextureImpl getWaypointEdit()
-    {
-        return getNamedTexture(Name.WaypointEdit, "waypoint-edit.png", false); //$NON-NLS-1$
-    }
-
-    public TextureImpl getWaypointOffscreen()
-    {
-        return getNamedTexture(Name.WaypointOffscreen, "waypoint-offscreen.png", false); //$NON-NLS-1$
-    }
-
-    public TextureImpl getDeathpoint()
-    {
-        return getNamedTexture(Name.Deathpoint, "waypoint-death.png", false); //$NON-NLS-1$
-    }
-
-    public TextureImpl getLogo()
-    {
-        return getNamedTexture(Name.Logo, "ico/journeymap60.png", false); //$NON-NLS-1$
-    }
-
-    public TextureImpl getPatreonLogo()
-    {
-        return getNamedTexture(Name.Patreon, "patreon.png", false); //$NON-NLS-1$
-    }
-
-    public TextureImpl getHostileLocator()
-    {
-        return getNamedTexture(Name.LocatorHostile, "locator-hostile.png", false); //$NON-NLS-1$
-    }
-
-    public TextureImpl getNeutralLocator()
-    {
-        return getNamedTexture(Name.LocatorNeutral, "locator-neutral.png", false); //$NON-NLS-1$
-    }
-
-    public TextureImpl getOtherLocator()
-    {
-        return getNamedTexture(Name.LocatorOther, "locator-other.png", false); //$NON-NLS-1$
-    }
-
-    public TextureImpl getPetLocator()
-    {
-        return getNamedTexture(Name.LocatorPet, "locator-pet.png", false); //$NON-NLS-1$
-    }
-
-    public TextureImpl getPlayerLocator()
-    {
-        return getNamedTexture(Name.LocatorPlayer, "locator-player.png", false); //$NON-NLS-1$
-    }
-
-    public TextureImpl getPlayerLocatorSmall()
-    {
-        return getNamedTexture(Name.LocatorPlayerSmall, "locator-player-sm.png", false); //$NON-NLS-1$
-    }
-
-    public TextureImpl getColorPicker()
-    {
-        return getNamedTexture(Name.ColorPicker, "colorpick.png", true); //$NON-NLS-1$
-    }
-
-    public TextureImpl getUnknownEntity()
-    {
-        return getNamedTexture(Name.UnknownEntity, "unknown.png", true); //$NON-NLS-1$
-    }
-
-    public TextureImpl getBrick()
-    {
-        return getNamedTexture(Name.Brick, "brick.png", true); //$NON-NLS-1$
-    }
+    public TextureImpl getWaypoint() { return getNamedTexture(Name.Waypoint, "waypoint.png", false); }
+    public TextureImpl getWaypointEdit() { return getNamedTexture(Name.WaypointEdit, "waypoint-edit.png", false); }
+    public TextureImpl getWaypointOffscreen() { return getNamedTexture(Name.WaypointOffscreen, "waypoint-offscreen.png", false); }
+    public TextureImpl getDeathpoint() { return getNamedTexture(Name.Deathpoint, "waypoint-death.png", false); }
+    public TextureImpl getLogo() { return getNamedTexture(Name.Logo, "ico/journeymap60.png", false); }
+    public TextureImpl getPatreonLogo() { return getNamedTexture(Name.Patreon, "patreon.png", false); }
+    public TextureImpl getHostileLocator() { return getNamedTexture(Name.LocatorHostile, "locator-hostile.png", false); }
+    public TextureImpl getNeutralLocator() { return getNamedTexture(Name.LocatorNeutral, "locator-neutral.png", false); }
+    public TextureImpl getOtherLocator() { return getNamedTexture(Name.LocatorOther, "locator-other.png", false); }
+    public TextureImpl getPetLocator() { return getNamedTexture(Name.LocatorPet, "locator-pet.png", false); }
+    public TextureImpl getPlayerLocator() { return getNamedTexture(Name.LocatorPlayer, "locator-player.png", false); }
+    public TextureImpl getPlayerLocatorSmall() { return getNamedTexture(Name.LocatorPlayerSmall, "locator-player-sm.png", false); }
+    public TextureImpl getColorPicker() { return getNamedTexture(Name.ColorPicker, "colorpick.png", true); }
+    public TextureImpl getUnknownEntity() { return getNamedTexture(Name.UnknownEntity, "unknown.png", true); }
+    public TextureImpl getBrick() { return getNamedTexture(Name.Brick, "brick.png", true); }
 
     public TextureImpl getGrid(Name name)
     {
         switch (name)
         {
-            case GridCheckers:
-                return getNamedTexture(Name.GridCheckers, "grid-checkers.png", true);
-            case GridDots:
-                return getNamedTexture(Name.GridDots, "grid-dots.png", true);
-            default:
-                return getNamedTexture(Name.GridSquares, "grid.png", true);
+            case GridCheckers: return getNamedTexture(Name.GridCheckers, "grid-checkers.png", true);
+            case GridDots:     return getNamedTexture(Name.GridDots, "grid-dots.png", true);
+            default:           return getNamedTexture(Name.GridSquares, "grid.png", true);
         }
     }
 
     public TextureImpl getTileSample(MapType mapType)
     {
-        if (mapType.isNight())
-        {
-            return getTileSampleNight();
-        }
-        else if (mapType.isUnderground())
-        {
-            return getTileSampleUnderground();
-        }
-        else
-        {
-            return getTileSampleDay();
-        }
+        if (mapType.isNight()) return getTileSampleNight();
+        else if (mapType.isUnderground()) return getTileSampleUnderground();
+        else return getTileSampleDay();
     }
 
-    public TextureImpl getTileSampleDay()
-    {
-        return getNamedTexture(Name.TileSampleDay, "tile-sample-day.png", true); //$NON-NLS-1$
-    }
-
-    public TextureImpl getTileSampleNight()
-    {
-        return getNamedTexture(Name.TileSampleNight, "tile-sample-night.png", true); //$NON-NLS-1$
-    }
-
-    public TextureImpl getTileSampleUnderground()
-    {
-        return getNamedTexture(Name.TileSampleUnderground, "tile-sample-underground.png", true); //$NON-NLS-1$
-    }
-
-    /**
-     * *************************************************
-     */
+    public TextureImpl getTileSampleDay() { return getNamedTexture(Name.TileSampleDay, "tile-sample-day.png", true); }
+    public TextureImpl getTileSampleNight() { return getNamedTexture(Name.TileSampleNight, "tile-sample-night.png", true); }
+    public TextureImpl getTileSampleUnderground() { return getNamedTexture(Name.TileSampleUnderground, "tile-sample-underground.png", true); }
 
     public TextureImpl getEntityIconTexture(String setName, String iconPath)
     {
@@ -286,13 +181,10 @@ public class TextureCache
             {
                 File parentDir = IconSetFileHandler.getEntityIconDir();
                 String assetPath = IconSetFileHandler.ASSETS_JOURNEYMAP_ICON_ENTITY;
-                BufferedImage img = FileHandler.getIconFromFile(parentDir, assetPath, setName, iconPath, getUnknownEntity().getImage()); //$NON-NLS-1$
+                BufferedImage img = FileHandler.getIconFromFile(parentDir, assetPath, setName, iconPath, getUnknownEntity().getImage());
                 if (img != null)
                 {
-                    if (tex != null)
-                    {
-                        tex.queueForDeletion();
-                    }
+                    if (tex != null) { tex.queueForDeletion(); }
                     tex = new TextureImpl(img);
                     entityIcons.put(texName, tex);
                 }
@@ -316,7 +208,10 @@ public class TextureCache
             {
                 File parentDir = ThemeFileHandler.getThemeIconDir();
                 String assetPath = ThemeFileHandler.ASSETS_JOURNEYMAP_ICON_THEME;
-                BufferedImage img = FileHandler.getIconFromFile(parentDir, assetPath, theme.directory, iconPath, null); //$NON-NLS-1$
+
+                // === MODIFIED: replaced direct FileHandler call with navigator-aware logic ===
+                BufferedImage img = navigator$getIconFromResourceLocation(parentDir, assetPath, theme.directory, iconPath);
+
                 if (img != null)
                 {
                     if (resize || alpha < 1f)
@@ -334,10 +229,7 @@ public class TextureCache
                         }
                     }
 
-                    if (tex != null)
-                    {
-                        tex.queueForDeletion();
-                    }
+                    if (tex != null) { tex.queueForDeletion(); }
                     tex = new TextureImpl(img, retainImage);
                     tex.alpha = alpha;
                     themeImages.put(texName, tex);
@@ -350,6 +242,66 @@ public class TextureCache
             }
             return tex;
         }
+    }
+
+    /**
+     * Пытается загрузить иконку по iconPath; если iconPath содержит ":" – интерпретирует его
+     * как указание на ресурс из другого мода (например "navigator:icon/waypoint.png")
+     * и загружает через NavigatorApi, иначе вызывает оригинальный FileHandler.getIconFromFile.
+     */
+    private BufferedImage navigator$getIconFromResourceLocation(File parentDir, String assetPath, String themeDir, String iconPath)
+    {
+        int index = iconPath.indexOf(":");
+        if (index == -1)
+        {
+            // Оригинальное поведение
+            return FileHandler.getIconFromFile(parentDir, assetPath, themeDir, iconPath, null);
+        }
+        // Убираем префикс "icon/" если он есть (он будет добавлен позже)
+        String fixedPath = iconPath.replaceFirst("icon/", "");
+        index = fixedPath.indexOf(":");
+
+        String location = "/assets/" + fixedPath.substring(0, index) + "/" + fixedPath.substring(index + 1);
+        String icon = "icon/" + fixedPath.substring(fixedPath.lastIndexOf("/") + 1);
+
+        return navigator$getIconFromFile(parentDir, location, themeDir, icon);
+    }
+
+    /**
+     * Загружает иконку сначала из файловой системы темы, затем (если не найдено)
+     * из ресурсов мода через NavigatorApi.
+     */
+    private BufferedImage navigator$getIconFromFile(File parentDir, String assetsPath, String themeDir, String iconPath)
+    {
+        if (iconPath == null) return null;
+
+        BufferedImage img = null;
+        try
+        {
+            String filePath = Joiner.on(File.separatorChar).join(themeDir, iconPath.replace('/', File.separatorChar));
+            File iconFile = new File(parentDir, filePath);
+            if (iconFile.exists())
+            {
+                img = FileHandler.getImage(iconFile);
+            }
+
+            if (img == null)
+            {
+                InputStream is = NavigatorApi.class.getResourceAsStream(assetsPath);
+                if (is == null)
+                {
+                    return null;
+                }
+                else
+                {
+                    img = ImageIO.read(is);
+                    is.close();
+                }
+            }
+        }
+        catch (Exception ignored) {}
+
+        return img;
     }
 
     public TextureImpl getScaledCopy(String texName, TextureImpl original, int width, int height, float alpha)
@@ -374,10 +326,7 @@ public class TextureCache
                         img = tmp;
                     }
 
-                    if (tex != null)
-                    {
-                        tex.queueForDeletion();
-                    }
+                    if (tex != null) { tex.queueForDeletion(); }
                     tex = new TextureImpl(img);
                     tex.alpha = alpha;
                     themeImages.put(texName, tex);
@@ -392,22 +341,15 @@ public class TextureCache
         }
     }
 
-    /**
-     * Get the head portion of a player's skin, scaled to 24x24 pixels.
-     */
     public TextureImpl getPlayerSkin(final String username)
     {
         TextureImpl tex = null;
         synchronized (playerSkins)
         {
             tex = playerSkins.get(username);
-            if (tex != null)
-            {
-                return tex;
-            }
+            if (tex != null) { return tex; }
             else
             {
-                // Create blank to return immediately
                 BufferedImage blank = new BufferedImage(24, 24, BufferedImage.TYPE_INT_ARGB);
                 tex = new TextureImpl(null, blank, true, false);
                 playerSkins.put(username, tex);
@@ -416,7 +358,6 @@ public class TextureCache
 
         final TextureImpl playerSkinTex = tex;
 
-        // Load it async
         texExec.submit(new Callable<Void>()
         {
             @Override
@@ -425,17 +366,13 @@ public class TextureCache
                 BufferedImage img = downloadSkin(username);
                 if (img != null)
                 {
-                    final BufferedImage scaledImage =
-                            ImageTypeSpecifier.createFromRenderedImage(img).createBufferedImage(24, 24);
+                    final BufferedImage scaledImage = ImageTypeSpecifier.createFromRenderedImage(img).createBufferedImage(24, 24);
                     final Graphics2D g = RegionImageHandler.initRenderingHints(scaledImage.createGraphics());
                     g.drawImage(img, 0, 0, 24, 24, null);
                     g.dispose();
                     playerSkinTex.setImage(scaledImage, true);
                 }
-                else
-                {
-                    Journeymap.getLogger().warn("Couldn't get a skin at all for {}", username);
-                }
+                else { Journeymap.getLogger().warn("Couldn't get a skin at all for {}", username); }
                 return null;
             }
         });
@@ -443,13 +380,9 @@ public class TextureCache
         return playerSkinTex;
     }
 
-    /**
-     * Blocks.  Use this in a thread.
-     */
     protected BufferedImage downloadSkin(String username)
     {
         BufferedImage img = null;
-        HttpURLConnection conn = null;
         try
         {
             String skinPath = String.format("http://skins.minecraft.net/MinecraftSkins/%s.png", StringUtils.stripControlCodes(username));
@@ -480,14 +413,11 @@ public class TextureCache
             conn.setConnectTimeout(3000);
             conn.setReadTimeout(1000);
             conn.connect();
-            if (conn.getResponseCode() / 100 == 2) // can't get input stream before response code available
+            if (conn.getResponseCode() / 100 == 2)
             {
                 img = ImageIO.read(conn.getInputStream()).getSubimage(8, 8, 8, 8);
             }
-            else
-            {
-                Journeymap.getLogger().warn("Bad Response getting image: {} : {}", imageURL, conn.getResponseCode());
-            }
+            else { Journeymap.getLogger().warn("Bad Response getting image: {} : {}", imageURL, conn.getResponseCode()); }
         }
         catch (Throwable e)
         {
@@ -495,50 +425,29 @@ public class TextureCache
         }
         finally
         {
-            if (conn != null)
-            {
-                conn.disconnect();
-            }
+            if (conn != null) { conn.disconnect(); }
         }
-
         return img;
     }
 
     public void purge()
     {
-        synchronized (namedTextures)
-        {
-            ExpireTextureTask.queue(namedTextures.values());
-            namedTextures.clear();
-        }
-
-        synchronized (entityIcons)
-        {
-            ExpireTextureTask.queue(entityIcons.values());
-            entityIcons.clear();
-        }
-
-        synchronized (themeImages)
-        {
-            ExpireTextureTask.queue(themeImages.values());
-            themeImages.clear();
-        }
+        synchronized (namedTextures) { ExpireTextureTask.queue(namedTextures.values()); namedTextures.clear(); }
+        synchronized (entityIcons)   { ExpireTextureTask.queue(entityIcons.values()); entityIcons.clear(); }
+        synchronized (themeImages)   { ExpireTextureTask.queue(themeImages.values()); themeImages.clear(); }
     }
 
     public void purgeThemeImages()
     {
-        synchronized (themeImages)
-        {
-            ExpireTextureTask.queue(themeImages.values());
-            themeImages.clear();
-        }
+        synchronized (themeImages) { ExpireTextureTask.queue(themeImages.values()); themeImages.clear(); }
     }
 
     public static enum Name
     {
-        MinimapSmallSquare, MinimapMediumSquare, MinimapLargeSquare, MinimapCustomSquare, MinimapSmallCircle,
-        MinimapLargeCircle, Waypoint, Deathpoint, WaypointOffscreen, WaypointEdit, Logo, Patreon, LocatorHostile,
-        LocatorNeutral, LocatorOther, LocatorPet, LocatorPlayer, LocatorPlayerSmall, ColorPicker, UnknownEntity,
+        MinimapSmallSquare, MinimapMediumSquare, MinimapLargeSquare, MinimapCustomSquare,
+        MinimapSmallCircle, MinimapLargeCircle, Waypoint, Deathpoint, WaypointOffscreen,
+        WaypointEdit, Logo, Patreon, LocatorHostile, LocatorNeutral, LocatorOther,
+        LocatorPet, LocatorPlayer, LocatorPlayerSmall, ColorPicker, UnknownEntity,
         GridSquares, GridDots, GridCheckers, Brick,
         TileSampleDay, TileSampleNight, TileSampleUnderground
     }

@@ -5,7 +5,6 @@
 
 package journeymap.client.ui.fullscreen;
 
-
 import journeymap.client.Constants;
 import journeymap.client.JourneymapClient;
 import journeymap.client.data.WaypointsData;
@@ -22,6 +21,7 @@ import journeymap.client.model.MapType;
 import journeymap.client.model.Waypoint;
 import journeymap.client.properties.FullMapProperties;
 import journeymap.client.properties.MiniMapProperties;
+import journeymap.client.render.draw.DrawStep;
 import journeymap.client.render.draw.DrawUtil;
 import journeymap.client.render.draw.RadarDrawStepFactory;
 import journeymap.client.render.draw.WaypointDrawStepFactory;
@@ -59,6 +59,18 @@ import java.awt.geom.Point2D;
 import java.util.Arrays;
 import java.util.List;
 
+// Navigator API imports
+import com.gtnewhorizons.navigator.api.NavigatorApi;
+import com.gtnewhorizons.navigator.api.journeymap.render.JMLayerRenderer;
+import com.gtnewhorizons.navigator.api.model.buttons.ButtonManager;
+import com.gtnewhorizons.navigator.api.model.layers.InteractableLayer;
+import com.gtnewhorizons.navigator.api.model.layers.LayerManager;
+import com.gtnewhorizons.navigator.api.model.layers.LayerRenderer;
+import com.gtnewhorizons.navigator.api.model.layers.UniversalLayerRenderer;
+import com.gtnewhorizons.navigator.internal.SearchBar;
+
+import static com.gtnewhorizons.navigator.api.NavigatorApi.layerManagers;
+
 /**
  * Displays the map as a full-screen overlay in-game.
  *
@@ -93,6 +105,22 @@ public class Fullscreen extends JmUI
     StatTimer drawMapTimerWithRefresh = StatTimer.get("Fullscreen.drawMap+refreshState", 5);
     LocationFormat locationFormat = new LocationFormat();
 
+    // Navigator additions
+    private int navigator$oldMouseX = 0;
+    private int navigator$oldMouseY = 0;
+    private long navigator$timeLastClick = 0;
+
+    private int navigator$oldCenterX = 0;
+    private int navigator$oldCenterZ = 0;
+    private int navigator$oldWidth = 0;
+    private int navigator$oldHeight = 0;
+
+    private long navigator$lastRecache = 0;
+
+    private boolean navigator$skipLayerDelegate = false;
+
+    private SearchBar navigator$searchBar;
+
     /**
      * Default constructor
      */
@@ -111,6 +139,11 @@ public class Fullscreen extends JmUI
     {
         return state;
     }
+
+    public static GridRenderer getGridRenderer() {
+        return gridRenderer;
+    }
+
 
     public void reset()
     {
@@ -138,6 +171,21 @@ public class Fullscreen extends JmUI
         {
             UIManager.getInstance().openSplash(this);
         }
+
+        // Navigator: notify layers and create search bar
+        layerManagers
+                .forEach(layerManager -> {
+                    layerManager.onGuiOpened();
+                    layerManager.forceRefresh();
+                });
+        navigator$searchBar = new SearchBar(6, height - 21, Math.min(width / 2 - 50, 200), 16);
+        navigator$searchBar.setTextConsumer(
+                text -> layerManagers
+                        .forEach(layerManager -> {
+                            if (layerManager.isLayerActive() && layerManager.hasSearchField()) {
+                                layerManager.onSearch(text);
+                            }
+                        }));
     }
 
     @Override
@@ -179,6 +227,19 @@ public class Fullscreen extends JmUI
                 }
             }
 
+            // Navigator: get tooltip from interactable layers if still null
+            if (tooltip == null) {
+                final int scaledMouseX = (mx * mc.displayWidth) / this.width;
+                final int scaledMouseY = (my * mc.displayHeight) / this.height;
+                for (LayerRenderer layer : NavigatorApi.getActiveRenderer()) {
+                    if (layer instanceof InteractableLayer waypointProviderLayer) {
+                        waypointProviderLayer.onMouseMove(scaledMouseX, scaledMouseY);
+                        tooltip = waypointProviderLayer.getTooltip();
+                        if (tooltip != null) break;
+                    }
+                }
+            }
+
             if (chat != null)
             {
                 chat.drawScreen(width, height, f);
@@ -188,6 +249,23 @@ public class Fullscreen extends JmUI
             {
                 drawHoveringText(tooltip, mx, my, getFontRenderer());
                 RenderHelper.disableStandardItemLighting();
+            }
+
+            // Navigator: draw custom layer tooltips and search bar
+            if (tooltip == null || tooltip.isEmpty()) {
+                for (LayerRenderer layer : NavigatorApi.getActiveRenderer()) {
+                    if (layer instanceof InteractableLayer interactableLayer) {
+                        interactableLayer.drawCustomTooltip(getFontRenderer(), mx, my, this.width, this.height);
+                    }
+                }
+            }
+
+            for (LayerManager layerManager : layerManagers) {
+                if (layerManager.isLayerActive() && layerManager.hasSearchField()) {
+                    navigator$searchBar.setVisible(true);
+                    navigator$searchBar.drawTextBox();
+                    navigator$searchBar.updateCursorCounter();
+                }
             }
 
         }
@@ -378,7 +456,7 @@ public class Fullscreen extends JmUI
                 }
             });
 
-            // Waypoints
+            // Theme
             buttonTheme = new ThemeButton(theme, "jm.common.ui_theme", "theme");
             buttonTheme.addToggleListener(new OnOffButton.ToggleListener()
             {
@@ -491,8 +569,27 @@ public class Fullscreen extends JmUI
                 }
             });
 
+            // --- Navigator: custom map type toolbar with extra buttons ---
+            ButtonList navigatorButtonList = new ButtonList();
+            for (ButtonManager btnManager : NavigatorApi.getEnabledButtons()) {
+                String icon = btnManager.getIcon(theme.name).toString();
+                String trimmedIcon = icon.substring(0, icon.lastIndexOf("."));
+                final ThemeToggle button = new ThemeToggle(theme, "", "", trimmedIcon);
+                btnManager.setOnToggle((toggled) -> button.setToggled(toggled, false));
+                button.setLabels(btnManager.getButtonText(), btnManager.getButtonText());
+                button.setToggled(btnManager.isActive(), false);
+                button.addToggleListener((unused, toggled) -> {
+                    btnManager.toggle();
+                    return true;
+                });
+                navigatorButtonList.add(button);
+            }
+            navigatorButtonList.add(buttonCaves);
+            navigatorButtonList.add(buttonNight);
+            navigatorButtonList.add(buttonDay);
+            mapTypeToolbar = new ThemeToolbar(theme, navigatorButtonList);
+
             // Toolbars
-            mapTypeToolbar = new ThemeToolbar(theme, buttonCaves, buttonNight, buttonDay);
             mapTypeToolbar.addAllButtons(this);
 
             optionsToolbar = new ThemeToolbar(theme, buttonMobs, buttonAnimals, buttonPets, buttonVillagers, buttonPlayers, buttonGrid);
@@ -642,9 +739,24 @@ public class Fullscreen extends JmUI
             return;
         }
 
-        // Invoke layer delegate
-        BlockCoordIntPair blockCoord = gridRenderer.getBlockUnderMouse(Mouse.getEventX(), Mouse.getEventY(), mc.displayWidth, mc.displayHeight);
-        layerDelegate.onMouseClicked(mc, Mouse.getEventX(), Mouse.getEventY(), gridRenderer.getWidth(), gridRenderer.getHeight(), blockCoord, mouseButton);
+        // Navigator: handle clicks on search bar or map layers before passing to layer delegate
+        int scaledMouseX = mouseX * mc.displayWidth / width;
+        int scaledMouseY = mouseY * mc.displayHeight / height;
+        if (navigator$searchBar.getVisible() && navigator$searchBar.isHovered(mouseX, mouseY)) {
+            navigator$skipLayerDelegate = true;
+        } else if (navigator$onMapClicked(mouseButton, scaledMouseX, scaledMouseY, null)) {
+            // BlockCoordIntPair will be created inside the method if needed; we pass null for now
+            navigator$skipLayerDelegate = true;
+        } else {
+            navigator$skipLayerDelegate = false;
+        }
+
+        // Invoke layer delegate only if not skipped
+        if (!navigator$skipLayerDelegate) {
+            BlockCoordIntPair blockCoord = gridRenderer.getBlockUnderMouse(Mouse.getEventX(), Mouse.getEventY(), mc.displayWidth, mc.displayHeight);
+            layerDelegate.onMouseClicked(mc, Mouse.getEventX(), Mouse.getEventY(), gridRenderer.getWidth(), gridRenderer.getHeight(), blockCoord, mouseButton);
+        }
+        navigator$skipLayerDelegate = false;
     }
 
     @Override
@@ -741,6 +853,24 @@ public class Fullscreen extends JmUI
     @Override
     public void keyTyped(char c, int i)
     {
+        // Navigator: handle search bar input first
+        for (LayerManager layerManager : layerManagers) {
+            if (layerManager.isLayerActive() && layerManager.hasSearchField()
+                    && navigator$searchBar.textboxKeyTyped(c, i)) {
+                return;
+            }
+        }
+
+        if ((chat == null || chat.isHidden())) {
+            for (LayerRenderer layer : NavigatorApi.getActiveRenderer()) {
+                if (layer instanceof InteractableLayer waypointProvider) {
+                    if (waypointProvider.onKeyPressed(i)) {
+                        return;
+                    }
+                }
+            }
+        }
+
         if (chat != null && !chat.isHidden())
         {
             chat.keyTyped(c, i);
@@ -916,6 +1046,25 @@ public class Fullscreen extends JmUI
             }
             gridRenderer.updateTiles(state.getCurrentMapType(), state.getZoom(), state.isHighQuality(), mc.displayWidth, mc.displayHeight, false, 0, 0);
             gridRenderer.draw(1f, xOffset, yOffset, fullMapProperties.showGrid.get());
+
+            // Navigator: recache layers and draw their steps before waypoints
+            final int fontScale = getMapFontScale();
+            final int centerBlockX = (int) Math.round(gridRenderer.getCenterBlockX());
+            final int centerBlockZ = (int) Math.round(gridRenderer.getCenterBlockZ());
+            final int widthBlocks = mc.displayWidth >> gridRenderer.getZoom();
+            final int heightBlocks = mc.displayHeight >> gridRenderer.getZoom();
+            for (LayerManager layerManager : layerManagers) {
+                if (navigator$shouldRecache(centerBlockX, centerBlockZ, widthBlocks, heightBlocks, layerManager)) {
+                    layerManager.recacheFullscreenMap(centerBlockX, centerBlockZ, widthBlocks, heightBlocks);
+                }
+            }
+            for (LayerRenderer layer : NavigatorApi.getActiveRendererByPriority()) {
+                if (layer instanceof JMLayerRenderer || layer instanceof UniversalLayerRenderer) {
+                    List<? extends DrawStep> steps = (List<? extends DrawStep>) layer.getRenderSteps();
+                    gridRenderer.draw(steps, xOffset, yOffset, drawScale, fontScale, 0.0);
+                }
+            }
+
             gridRenderer.draw(state.getDrawSteps(), xOffset, yOffset, drawScale, getMapFontScale(), 0);
             gridRenderer.draw(state.getDrawWaypointSteps(), xOffset, yOffset, drawScale, getMapFontScale(), 0);
 
@@ -1115,7 +1264,48 @@ public class Fullscreen extends JmUI
         }
         catch (Exception e)
         {
-            Journeymap.getLogger().error("Could not load Theme: {}", LogFormatter.toString(e));
+            logger.error("Could not load Theme: {}", LogFormatter.toString(e));
         }
+    }
+
+    // ---------- Navigator helper methods ----------
+    private boolean navigator$shouldRecache(int centerX, int centerZ, int width, int height, LayerManager manager) {
+        if (!manager.isLayerActive()) return false;
+        long now = System.currentTimeMillis();
+        if (navigator$oldCenterX != centerX || navigator$oldCenterZ != centerZ
+                || navigator$oldWidth != width
+                || navigator$oldHeight != height
+                || manager.forceRefresh
+                || now - navigator$lastRecache >= 1000L) {
+            navigator$oldCenterX = centerX;
+            navigator$oldCenterZ = centerZ;
+            navigator$oldWidth = width;
+            navigator$oldHeight = height;
+            navigator$lastRecache = now;
+            return true;
+        }
+        return false;
+    }
+
+    private boolean navigator$onMapClicked(int mouseButton, int mouseX, int mouseY, BlockCoordIntPair blockCoord) {
+        if (mouseButton != 0) return false;
+        final long timestamp = System.currentTimeMillis();
+        final boolean isDoubleClick = mouseX == navigator$oldMouseX && mouseY == navigator$oldMouseY
+                && timestamp - navigator$timeLastClick < 250L;
+        navigator$oldMouseX = mouseX;
+        navigator$oldMouseY = mouseY;
+        navigator$timeLastClick = timestamp;
+        // If blockCoord is null, we need to obtain it from gridRenderer
+        if (blockCoord == null) {
+            blockCoord = gridRenderer.getBlockUnderMouse(Mouse.getEventX(), Mouse.getEventY(), mc.displayWidth, mc.displayHeight);
+        }
+        final int finalX = blockCoord.x;
+        final int finalZ = blockCoord.z;
+        for (LayerRenderer layer : NavigatorApi.getActiveRenderer()) {
+            if (layer instanceof InteractableLayer waypointProviderLayer) {
+                return waypointProviderLayer.onMapClick(isDoubleClick, mouseX, mouseY, finalX, finalZ);
+            }
+        }
+        return false;
     }
 }

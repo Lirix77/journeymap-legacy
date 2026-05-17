@@ -88,7 +88,7 @@ public class JourneymapClient implements CommonProxy
     {
         if (instance != null)
         {
-            throw new IllegalArgumentException("Use instance() after initialization is complete");
+            //throw new IllegalArgumentException("Use instance() after initialization is complete");
         }
         instance = this;
     }

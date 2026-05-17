@@ -17,6 +17,7 @@ import journeymap.client.log.StatTimer;
 import journeymap.client.model.MapState;
 import journeymap.client.model.MapType;
 import journeymap.client.properties.MiniMapProperties;
+import journeymap.client.render.draw.DrawStep;          // [Mixin integration]
 import journeymap.client.render.draw.DrawUtil;
 import journeymap.client.render.draw.DrawWayPointStep;
 import journeymap.client.render.draw.RadarDrawStepFactory;
@@ -36,6 +37,15 @@ import org.lwjgl.opengl.GL11;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
+// [Mixin integration] Imports for Navigator API
+import com.gtnewhorizons.navigator.api.NavigatorApi;
+import com.gtnewhorizons.navigator.api.model.layers.LayerManager;
+import com.gtnewhorizons.navigator.api.model.layers.LayerRenderer;
+import com.gtnewhorizons.navigator.api.model.steps.RenderStep;
+
+import static com.gtnewhorizons.navigator.api.NavigatorApi.layerManagers;
+import static journeymap.common.Journeymap.getLogger;
+
 /**
  * Displays the map as a minimap overlay in-game.
  *
@@ -50,7 +60,7 @@ public class MiniMap
     private static final long labelRefreshRate = 400;
     private final static GridRenderer gridRenderer = new GridRenderer();
     private final IForgeHelper forgeHelper = ForgeHelper.INSTANCE;
-    private final Logger logger = Journeymap.getLogger();
+    private final Logger logger = getLogger();
     private final Minecraft mc = ForgeHelper.INSTANCE.getClient();
     private final WaypointDrawStepFactory waypointRenderer = new WaypointDrawStepFactory();
     private final RadarDrawStepFactory radarRenderer = new RadarDrawStepFactory();
@@ -255,7 +265,7 @@ public class MiniMap
                 centerPoint = gridRenderer.getPixel(mc.thePlayer.posX, mc.thePlayer.posZ);
                 centerRect = new Rectangle2D.Double(centerPoint.x - dv.minimapWidth / 2, centerPoint.y - dv.minimapHeight / 2, dv.minimapWidth, dv.minimapHeight);
 
-                // Draw waypoints
+                // Draw waypoints (including integrated Navigator API calls)
                 drawOnMapWaypoints(rotation);
 
                 // Draw player
@@ -400,8 +410,42 @@ public class MiniMap
         }
     }
 
+    // [Mixin integration] Modified method: now includes Navigator API layer recaching and rendering
     private void drawOnMapWaypoints(double rotation)
     {
+        // --- Begin Navigator API integration (originally from MiniMapMixin) ---
+        for (LayerManager layerManager : layerManagers) {
+            //if (layerManager.isLayerActive()) {
+                if (dv.shape == Shape.Circle) {
+                    layerManager.recacheMiniMap(
+                            (int) mc.thePlayer.posX,
+                            (int) mc.thePlayer.posZ,
+                            dv.minimapWidth);
+                } else {
+                    layerManager.recacheMiniMap(
+                            (int) mc.thePlayer.posX,
+                            (int) mc.thePlayer.posZ,
+                            gridRenderer.getWidth(),
+                            gridRenderer.getHeight());
+                }
+            //}
+        }
+
+        for (LayerRenderer layerRenderer : NavigatorApi.getActiveRendererByPriority()) {
+            for (RenderStep renderStep : layerRenderer.getRenderSteps()) {
+                if (renderStep instanceof DrawStep drawStep) {
+                    drawStep.draw(
+                            0.0D,
+                            0.0D,
+                            gridRenderer,
+                            dv.drawScale,
+                            dv.fontScale,
+                            rotation);
+                }
+            }
+        }
+        // --- End Navigator API integration ---
+
         boolean showLabel = miniMapProperties.showWaypointLabels.get();
         for (DrawWayPointStep drawWayPointStep : state.getDrawWaypointSteps())
         {

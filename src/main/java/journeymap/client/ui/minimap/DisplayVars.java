@@ -437,4 +437,24 @@ public class DisplayVars
         }
     }
 
+    public float getDrawScale() {
+        return drawScale;
+    }
+
+    public double getFontScale() {
+        return fontScale;
+    }
+
+    public Shape getShape() {
+        return shape;
+    }
+
+    public int getMinimapWidth() {
+        return minimapWidth;
+    }
+
+    public int getMinimapHeight() {
+        return minimapHeight;
+    }
+
 }

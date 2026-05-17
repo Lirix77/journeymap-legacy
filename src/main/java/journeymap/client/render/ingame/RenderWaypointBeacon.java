@@ -5,6 +5,10 @@
 
 package journeymap.client.render.ingame;
 
+import com.gtnewhorizons.navigator.api.NavigatorApi;
+import com.gtnewhorizons.navigator.api.journeymap.waypoints.JMWaypointManager;
+import com.gtnewhorizons.navigator.api.model.layers.InteractableLayerManager;
+import com.gtnewhorizons.navigator.api.model.waypoints.WaypointManager;
 import journeymap.client.Constants;
 import journeymap.client.JourneymapClient;
 import journeymap.client.cartography.RGB;
@@ -44,6 +48,7 @@ public class RenderWaypointBeacon
     static WaypointProperties waypointProperties;
 
     private static final float MIN_VISIBLE_ALPHA = 0.01F;
+    private static boolean skipFade = false; // Отключает затухание для waypoint из Navigator API
 
     public static void resetStatTimers()
     {
@@ -62,6 +67,29 @@ public class RenderWaypointBeacon
         {
             waypointProperties = JourneymapClient.getWaypointProperties();
 
+            // Рендер waypoint из Navigator API с отключённым затуханием
+            skipFade = true;
+            try
+            {
+                for (InteractableLayerManager layer : NavigatorApi.getInteractableLayers())
+                {
+                    WaypointManager waypointManager = layer.getWaypointManager();
+                    if (waypointManager instanceof JMWaypointManager jmWaypointManager && waypointManager.hasWaypoint())
+                    {
+                        final Waypoint waypoint = jmWaypointManager.getJmWaypoint();
+                        if (waypoint.getDimensions().contains(mc.thePlayer.dimension))
+                        {
+                            doRender(waypoint, partialTicks);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                skipFade = false;
+            }
+
+            // Обычный рендер waypoint из хранилища JourneyMap
             Collection<Waypoint> waypoints = WaypointStore.instance().getAll();
             //allTimer.start();
             final int playerDim = mc.thePlayer.dimension;
@@ -126,7 +154,15 @@ public class RenderWaypointBeacon
             final double fadeEndDistance = waypointProperties.beaconFadeEnd.get();
 
             final double horizontalDistance = getHorizontalDistance(playerVec, waypointVec);
-            final float fadeAlpha = getFadeAlpha(horizontalDistance, fadeStartDistance, fadeEndDistance);
+            final float fadeAlpha;
+            if (skipFade)
+            {
+                fadeAlpha = 1.0F;
+            }
+            else
+            {
+                fadeAlpha = getFadeAlpha(horizontalDistance, fadeStartDistance, fadeEndDistance);
+            }
             if (fadeAlpha <= MIN_VISIBLE_ALPHA)
             {
                 return;

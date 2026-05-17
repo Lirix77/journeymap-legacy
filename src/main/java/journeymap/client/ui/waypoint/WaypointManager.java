@@ -5,6 +5,9 @@
 
 package journeymap.client.ui.waypoint;
 
+import com.gtnewhorizons.navigator.api.NavigatorApi;
+import com.gtnewhorizons.navigator.api.model.layers.InteractableLayerManager;
+import com.gtnewhorizons.navigator.api.model.layers.LayerManager;
 import journeymap.client.Constants;
 import journeymap.client.command.CmdTeleportWaypoint;
 import journeymap.client.forge.helper.ForgeHelper;
@@ -492,6 +495,13 @@ public class WaypointManager extends JmUI
 
     protected boolean toggleItems(boolean enable)
     {
+        if (!enable) {
+            for (LayerManager layer : NavigatorApi.layerManagers) {
+                if (layer instanceof InteractableLayerManager waypointProvider) {
+                    waypointProvider.clearActiveWaypoint();
+                }
+            }
+        }
         for (WaypointManagerItem item : items)
         {
             if (enable == item.waypoint.isEnable())
