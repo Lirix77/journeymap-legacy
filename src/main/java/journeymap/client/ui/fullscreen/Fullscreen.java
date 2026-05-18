@@ -730,7 +730,9 @@ public class Fullscreen extends JmUI
         {
             chat.mouseClicked(mouseX, mouseY, mouseButton);
         }
-
+        if (navigator$searchBar.getVisible()) {
+            navigator$searchBar.mouseClicked(mouseX, mouseY, mouseButton);
+        }
         super.mouseClicked(mouseX, mouseY, mouseButton);
 
         // Bail if over a button
